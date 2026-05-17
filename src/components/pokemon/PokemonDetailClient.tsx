@@ -5,7 +5,7 @@ import { useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, Flame, HeartPulse, Shield, Swords } from "lucide-react";
 import { EmptyState } from "@/components/base/EmptyState";
-import { EvolutionChain } from "@/components/pokemon/EvolutionChain";
+import { EvolutionChain, type EvoNode } from "@/components/pokemon/EvolutionChain";
 import { TypeBadge } from "@/components/pokemon/TypeBadge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -100,8 +100,8 @@ export function PokemonDetailClient({
 
   const { pokemons } = usePokemonCatalog();
 
-  const fullChain = useMemo(() => {
-    if (!pokemon || !pokemons.length) return [];
+  const evoRoot = useMemo(() => {
+    if (!pokemon || !pokemons.length) return null;
 
     const findByName = (n?: string | null) => {
       if (!n) return null;
@@ -138,37 +138,48 @@ export function PokemonDetailClient({
       }
     }
 
-    // Traverse down from the root to get the full chain (BFS)
-    const chain: PokemonSummary[] = [];
-    const rootName = root.name;
+    // Traverse down from the root to build the tree recursively
+    const buildTree = (currentObj: PokemonSummary, visited: Set<string>): EvoNode => {
+      const children: EvoNode[] = [];
 
-    if (rootName) {
-      const queue = [rootName];
-      const visited = new Set<string>();
+      if (currentObj.evolutions) {
+        const directEvolutions = currentObj.evolutions.filter((evo) => {
+          const evoName = evo?.name?.toLowerCase();
+          if (!evoName) return false;
 
-      while (queue.length > 0) {
-        const currentName = queue.shift();
-        if (!currentName) continue;
+          return !currentObj.evolutions!.some((otherEvo) => {
+            if (otherEvo === evo) return false;
+            const otherObj = findByName(otherEvo?.name);
+            return otherObj?.evolutions?.some(
+              (e) => e?.name?.toLowerCase() === evoName,
+            );
+          });
+        });
 
-        const normalizedName = currentName.toLowerCase();
-        if (visited.has(normalizedName)) continue;
-        visited.add(normalizedName);
-
-        const current = findByName(currentName);
-        if (current) {
-          chain.push(current);
-          if (current.evolutions) {
-            for (const evo of current.evolutions) {
-              if (evo?.name) {
-                queue.push(evo.name);
-              }
+        for (const evo of directEvolutions) {
+          const evoName = evo?.name?.toLowerCase();
+          if (evoName && !visited.has(evoName)) {
+            const nextVisited = new Set(visited);
+            nextVisited.add(evoName);
+            const childObj = findByName(evoName);
+            if (childObj) {
+              children.push(buildTree(childObj, nextVisited));
             }
           }
         }
       }
-    }
 
-    return chain;
+      return {
+        pokemon: currentObj,
+        children,
+      };
+    };
+
+    const visited = new Set<string>();
+    const rootName = root.name?.toLowerCase() ?? "";
+    if (rootName) visited.add(rootName);
+
+    return buildTree(root, visited);
   }, [pokemon, pokemons]);
 
   const pokemonClassification = pokemon?.classification ?? "Pokémon";
@@ -345,7 +356,7 @@ export function PokemonDetailClient({
       <Separator />
 
       <section className="space-y-4">
-        <EvolutionChain currentId={pokemon.id} stages={fullChain} />
+        <EvolutionChain currentId={pokemon.id} root={evoRoot} />
       </section>
     </div>
   );
