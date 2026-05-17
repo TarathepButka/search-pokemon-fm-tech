@@ -97,17 +97,17 @@ export function PokemonDetailClient({
 }: PokemonDetailClientProps) {
   const router = useRouter();
   const client = useApolloClient();
-  const initialized = useRef(false);
 
   // Prime the Apollo cache with initialData from server
-  if (!initialized.current && initialData) {
-    client.writeQuery({
-      query: POKEMON_QUERY,
-      variables: { name },
-      data: { pokemon: initialData },
-    });
-    initialized.current = true;
-  }
+  useEffect(() => {
+    if (initialData) {
+      client.writeQuery({
+        query: POKEMON_QUERY,
+        variables: { name },
+        data: { pokemon: initialData },
+      });
+    }
+  }, [client, initialData, name]);
 
   const {
     pokemon: clientPokemon,
