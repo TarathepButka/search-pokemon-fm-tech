@@ -3,7 +3,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { memo } from "react";
-
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypeBadge } from "@/components/pokemon/TypeBadge";
@@ -35,17 +34,19 @@ function PokemonCardComponent({
           )}
         >
           <div className="relative aspect-square overflow-hidden rounded-2xl bg-linear-to-br from-muted/70 via-muted/30 to-transparent">
-            <Image
-              src={pokemon.image}
-              alt={pokemon.name}
-              fill
-              sizes="(max-width: 640px) 65vw, (max-width: 1024px) 30vw, 18vw"
-              className={cn(
-                "object-contain transition-transform duration-300 group-hover:scale-105",
-                compact ? "p-2" : "p-3",
-              )}
-              priority={compact}
-            />
+            {pokemon.image ? (
+              <Image
+                src={pokemon.image}
+                alt={pokemon.name ?? ""}
+                fill
+                sizes="(max-width: 640px) 65vw, (max-width: 1024px) 30vw, 18vw"
+                className={cn(
+                  "object-contain transition-transform duration-300 group-hover:scale-105",
+                  compact ? "p-2" : "p-3",
+                )}
+                priority={compact}
+              />
+            ) : null}
           </div>
 
           <div className={cn("space-y-3", compact && "space-y-2")}>

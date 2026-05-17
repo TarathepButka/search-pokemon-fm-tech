@@ -22,6 +22,7 @@ function readRecentSearches() {
 
   try {
     const stored = window.localStorage.getItem(RECENT_SEARCH_KEY);
+
     return stored ? (JSON.parse(stored) as string[]) : [];
   } catch {
     return [];
@@ -31,9 +32,7 @@ function readRecentSearches() {
 function writeRecentSearches(searches: string[]) {
   try {
     window.localStorage.setItem(RECENT_SEARCH_KEY, JSON.stringify(searches));
-  } catch {
-    // no-op
-  }
+  } catch {}
 }
 
 export function SearchBar({ className }: { className?: string }) {
@@ -56,6 +55,7 @@ export function SearchBar({ className }: { className?: string }) {
   const [prevPathname, setPrevPathname] = useState(pathname);
   if (pathname !== prevPathname) {
     setPrevPathname(pathname);
+
     if (pathname === "/") {
       setValue("");
     }
@@ -102,6 +102,7 @@ export function SearchBar({ className }: { className?: string }) {
       }
 
       seen.add(normalized);
+
       return true;
     });
 
@@ -171,6 +172,7 @@ export function SearchBar({ className }: { className?: string }) {
               if (event.key === "Enter") {
                 handleSubmit();
               }
+
               return;
             }
 

@@ -1,7 +1,6 @@
 "use client";
 
 import { ArrowRight, ChevronRight } from "lucide-react";
-
 import { EvolutionCard } from "@/components/pokemon/EvolutionCard";
 import type { PokemonSummary } from "@/lib/pokemon";
 

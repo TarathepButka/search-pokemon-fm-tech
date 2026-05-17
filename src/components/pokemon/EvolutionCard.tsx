@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import Link from "next/link";
-
 import { Card, CardContent } from "@/components/ui/card";
 import { TypeBadge } from "@/components/pokemon/TypeBadge";
 import { cn } from "@/lib/utils";
@@ -30,13 +29,15 @@ export function EvolutionCard({ pokemon, active }: EvolutionCardProps) {
           className={cn("flex h-full flex-col gap-3 p-3", active && "sm:p-4")}
         >
           <div className="relative aspect-4/3 overflow-hidden rounded-2xl bg-linear-to-br from-muted/70 via-muted/20 to-transparent">
-            <Image
-              src={pokemon.image}
-              alt={pokemon.name}
-              fill
-              sizes="(max-width: 640px) 44vw, 140px"
-              className="object-contain p-2 transition-transform duration-300 group-hover:scale-105"
-            />
+            {pokemon.image ? (
+              <Image
+                src={pokemon.image}
+                alt={pokemon.name ?? ""}
+                fill
+                sizes="(max-width: 640px) 44vw, 140px"
+                className="object-contain p-2 transition-transform duration-300 group-hover:scale-105"
+              />
+            ) : null}
           </div>
 
           <div className="space-y-2 text-center">

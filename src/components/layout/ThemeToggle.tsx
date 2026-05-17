@@ -3,7 +3,6 @@
 import { MoonStar, SunMedium } from "lucide-react";
 import { useSyncExternalStore } from "react";
 import { useTheme } from "next-themes";
-
 import { Button } from "@/components/ui/button";
 
 export function ThemeToggle() {

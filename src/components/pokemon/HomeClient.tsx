@@ -4,7 +4,6 @@ import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Filter } from "lucide-react";
 import Autoplay from "embla-carousel-autoplay";
-
 import { EmptyState } from "@/components/base/EmptyState";
 import { ErrorState } from "@/components/base/ErrorState";
 import {
@@ -147,7 +146,7 @@ export function HomeClient({ initialQuery, initialType }: HomeClientProps) {
             </Button>
           </div>
 
-          {loading ? (
+          {loading && pokemons.length === 0 ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {Array.from({ length: 8 }).map((_, index) => (
                 <PokemonCardSkeleton key={index} />
@@ -184,7 +183,7 @@ export function HomeClient({ initialQuery, initialType }: HomeClientProps) {
             </div>
           </div>
 
-          {loading ? (
+          {loading && pokemons.length === 0 ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {Array.from({ length: 8 }).map((_, index) => (
                 <PokemonCardSkeleton key={index} />

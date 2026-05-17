@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-
 import { ErrorState } from "@/components/base/ErrorState";
 
 type ErrorPageProps = {

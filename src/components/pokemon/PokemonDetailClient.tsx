@@ -1,11 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useEffect, useRef } from "react";
+import { useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useApolloClient } from "@apollo/client";
 import { ChevronLeft, Flame, HeartPulse, Shield, Swords } from "lucide-react";
-
 import { EmptyState } from "@/components/base/EmptyState";
 import { EvolutionChain } from "@/components/pokemon/EvolutionChain";
 import { TypeBadge } from "@/components/pokemon/TypeBadge";
@@ -13,9 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { usePokemonDetail } from "@/features/pokemon/hooks/usePokemonDetail";
 import { usePokemonCatalog } from "@/features/pokemon/hooks/usePokemonCatalog";
-import { POKEMON_QUERY } from "@/features/pokemon/graphql/queries";
 import type { PokemonDetail, PokemonSummary } from "@/lib/pokemon";
 import { formatRange } from "@/lib/pokemon";
 
@@ -96,46 +92,47 @@ export function PokemonDetailClient({
   initialData,
 }: PokemonDetailClientProps) {
   const router = useRouter();
-  const client = useApolloClient();
 
-  // Prime the Apollo cache with initialData from server
-  useEffect(() => {
-    if (initialData) {
-      client.writeQuery({
-        query: POKEMON_QUERY,
-        variables: { name },
-        data: { pokemon: initialData },
-      });
-    }
-  }, [client, initialData, name]);
+  // initialData comes from the server (SSR fetch) and is the source of truth.
+  // We do NOT re-fetch via Apollo here to avoid cache merge issues where
+  // InMemoryCache returns a partial object that overwrites complete server data.
+  const pokemon = initialData ?? null;
 
-  const {
-    pokemon: clientPokemon,
-    loading: detailLoading,
-    error: detailError,
-  } = usePokemonDetail(name);
-  const { pokemons, loading: catalogLoading } = usePokemonCatalog();
-
-  const pokemon = clientPokemon || initialData;
+  const { pokemons } = usePokemonCatalog();
 
   const fullChain = useMemo(() => {
     if (!pokemon || !pokemons.length) return [];
 
-    const findByName = (n: string) =>
-      pokemons.find((p) => p.name.toLowerCase() === n.toLowerCase());
+    const findByName = (n?: string | null) => {
+      if (!n) return null;
+      const target = n.toLowerCase();
+      return pokemons.find((p) => p?.name?.toLowerCase() === target);
+    };
 
     // Find the root of the evolution chain by going upwards
     let root: PokemonSummary = pokemon;
     let foundPrevious = true;
 
     while (foundPrevious) {
+      const rootName = root.name?.toLowerCase();
+      if (!rootName) {
+        foundPrevious = false;
+        break;
+      }
+
       const previous = pokemons.find((p) =>
-        p.evolutions?.some(
-          (e) => e.name.toLowerCase() === root.name.toLowerCase(),
+        p?.evolutions?.some(
+          (e) => e?.name?.toLowerCase() === rootName,
         ),
       );
-      if (previous) {
-        root = previous;
+
+      if (previous && previous.name) {
+        // Prevent infinite loop if data is circular
+        if (previous.name.toLowerCase() === root.name?.toLowerCase()) {
+          foundPrevious = false;
+        } else {
+          root = previous;
+        }
       } else {
         foundPrevious = false;
       }
@@ -143,20 +140,29 @@ export function PokemonDetailClient({
 
     // Traverse down from the root to get the full chain (BFS)
     const chain: PokemonSummary[] = [];
-    const queue = [root.name];
-    const visited = new Set<string>();
+    const rootName = root.name;
 
-    while (queue.length > 0) {
-      const currentName = queue.shift()!;
-      if (visited.has(currentName)) continue;
-      visited.add(currentName);
+    if (rootName) {
+      const queue = [rootName];
+      const visited = new Set<string>();
 
-      const current = findByName(currentName);
-      if (current) {
-        chain.push(current);
-        if (current.evolutions) {
-          for (const evo of current.evolutions) {
-            queue.push(evo.name);
+      while (queue.length > 0) {
+        const currentName = queue.shift();
+        if (!currentName) continue;
+
+        const normalizedName = currentName.toLowerCase();
+        if (visited.has(normalizedName)) continue;
+        visited.add(normalizedName);
+
+        const current = findByName(currentName);
+        if (current) {
+          chain.push(current);
+          if (current.evolutions) {
+            for (const evo of current.evolutions) {
+              if (evo?.name) {
+                queue.push(evo.name);
+              }
+            }
           }
         }
       }
@@ -165,20 +171,16 @@ export function PokemonDetailClient({
     return chain;
   }, [pokemon, pokemons]);
 
-  const loading = detailLoading || (catalogLoading && !pokemons.length);
-  const error = detailError;
+  const pokemonClassification = pokemon?.classification ?? "Pokémon";
+  const pokemonTypes = pokemon?.types ?? [];
+  const pokemonResistant = pokemon?.resistant ?? [];
+  const pokemonWeaknesses = pokemon?.weaknesses ?? [];
+  const pokemonFastAttacks = pokemon?.attacks?.fast ?? [];
+  const pokemonSpecialAttacks = pokemon?.attacks?.special ?? [];
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [name]);
-
-  if (loading) {
-    // ...
-  }
-
-  if (error) {
-    // ...
-  }
 
   if (!pokemon) {
     return (
@@ -213,14 +215,16 @@ export function PokemonDetailClient({
         <Card className="overflow-hidden border-border/60 bg-background/70">
           <CardContent className="p-4 sm:p-6">
             <div className="relative aspect-square overflow-hidden rounded-3xl bg-linear-to-br from-muted/80 via-muted/30 to-transparent">
-              <Image
-                src={pokemon.image}
-                alt={pokemon.name}
-                fill
-                priority
-                sizes="(max-width: 1024px) 92vw, 40vw"
-                className="object-contain p-4 drop-shadow-[0_24px_40px_rgba(0,0,0,0.12)]"
-              />
+              {pokemon.image ? (
+                <Image
+                  src={pokemon.image}
+                  alt={pokemon.name ?? ""}
+                  fill
+                  priority
+                  sizes="(max-width: 1024px) 92vw, 40vw"
+                  className="object-contain p-4 drop-shadow-[0_24px_40px_rgba(0,0,0,0.12)]"
+                />
+              ) : null}
             </div>
           </CardContent>
         </Card>
@@ -236,7 +240,7 @@ export function PokemonDetailClient({
                   #{pokemon.number}
                 </Badge>
                 <span className="text-sm text-muted-foreground">
-                  {pokemon.classification}
+                  {pokemonClassification}
                 </span>
               </div>
               <div className="space-y-3">
@@ -244,7 +248,7 @@ export function PokemonDetailClient({
                   {pokemon.name}
                 </CardTitle>
                 <div className="flex flex-wrap gap-2">
-                  {pokemon.types.map((type) => (
+                  {pokemonTypes.map((type) => (
                     <TypeBadge key={type} type={type} />
                   ))}
                 </div>
@@ -252,7 +256,7 @@ export function PokemonDetailClient({
             </CardHeader>
             <CardContent className="space-y-5">
               <p className="max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">
-                A {pokemon.classification.toLowerCase()} Pokémon with{" "}
+                A {pokemonClassification.toLowerCase()} Pokémon with{" "}
                 {pokemon.maxHP} max HP and a max CP of {pokemon.maxCP}.
               </p>
 
@@ -292,8 +296,8 @@ export function PokemonDetailClient({
                 <CardTitle className="text-base">Resistant</CardTitle>
               </CardHeader>
               <CardContent className="flex flex-wrap gap-2">
-                {pokemon.resistant.length ? (
-                  pokemon.resistant.map((item) => (
+                {pokemonResistant.length ? (
+                  pokemonResistant.map((item) => (
                     <TypeBadge key={item} type={item} />
                   ))
                 ) : (
@@ -308,8 +312,8 @@ export function PokemonDetailClient({
                 <CardTitle className="text-base">Weaknesses</CardTitle>
               </CardHeader>
               <CardContent className="flex flex-wrap gap-2">
-                {pokemon.weaknesses.length ? (
-                  pokemon.weaknesses.map((item) => (
+                {pokemonWeaknesses.length ? (
+                  pokemonWeaknesses.map((item) => (
                     <TypeBadge key={item} type={item} />
                   ))
                 ) : (
@@ -329,12 +333,12 @@ export function PokemonDetailClient({
         <AttackList
           title="Fast attacks"
           icon={<Swords className="size-4" />}
-          attacks={pokemon.attacks.fast}
+          attacks={pokemonFastAttacks}
         />
         <AttackList
           title="Special attacks"
           icon={<Flame className="size-4" />}
-          attacks={pokemon.attacks.special}
+          attacks={pokemonSpecialAttacks}
         />
       </section>
 
