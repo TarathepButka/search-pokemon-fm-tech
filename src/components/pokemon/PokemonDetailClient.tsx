@@ -110,7 +110,7 @@ export function PokemonDetailClient({
       pokemons.find((p) => p.name.toLowerCase() === n.toLowerCase());
 
     // Find the root of the evolution chain by going upwards
-    let root = pokemon;
+    let root: PokemonSummary = pokemon;
     let foundPrevious = true;
 
     while (foundPrevious) {
