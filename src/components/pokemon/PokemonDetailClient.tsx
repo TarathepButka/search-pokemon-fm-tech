@@ -1,8 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useEffect } from "react";
+import { useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useApolloClient } from "@apollo/client";
 import { ChevronLeft, Flame, HeartPulse, Shield, Swords } from "lucide-react";
 
 import { EmptyState } from "@/components/base/EmptyState";
@@ -14,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { usePokemonDetail } from "@/features/pokemon/hooks/usePokemonDetail";
 import { usePokemonCatalog } from "@/features/pokemon/hooks/usePokemonCatalog";
+import { POKEMON_QUERY } from "@/features/pokemon/graphql/queries";
 import type { PokemonDetail, PokemonSummary } from "@/lib/pokemon";
 import { formatRange } from "@/lib/pokemon";
 
@@ -94,6 +96,19 @@ export function PokemonDetailClient({
   initialData,
 }: PokemonDetailClientProps) {
   const router = useRouter();
+  const client = useApolloClient();
+  const initialized = useRef(false);
+
+  // Prime the Apollo cache with initialData from server
+  if (!initialized.current && initialData) {
+    client.writeQuery({
+      query: POKEMON_QUERY,
+      variables: { name },
+      data: { pokemon: initialData },
+    });
+    initialized.current = true;
+  }
+
   const {
     pokemon: clientPokemon,
     loading: detailLoading,

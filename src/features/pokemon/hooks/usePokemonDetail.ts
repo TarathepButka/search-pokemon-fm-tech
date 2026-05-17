@@ -8,8 +8,7 @@ import type { PokemonDetail } from "@/lib/pokemon";
 export function usePokemonDetail(name: string) {
   const query = useQuery<{ pokemon: PokemonDetail | null }>(POKEMON_QUERY, {
     variables: { name },
-    fetchPolicy: "cache-and-network",
-    nextFetchPolicy: "cache-first",
+    fetchPolicy: "cache-first",
   });
 
   return {
